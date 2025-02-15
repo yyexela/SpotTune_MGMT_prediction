@@ -20,7 +20,7 @@ from keras.metrics import AUC
 
 def retrieve_data(csv_dir, modality='T2'):
     # feature csv locations, genomic info is stored in the clinical info csv
-    clinical_info = pd.read_csv(os.path.join(csv_dir, '../UPENN-GBM_clinical_info_v1.0.csv'))
+    clinical_info = pd.read_csv(os.path.join(csv_dir, '../UPENN-GBM_clinical_info_v2.1.csv'))
     
     # maybe useful in the future, pulls all modalities and stores them into a dictionary of DataFrames 
     features_csvs = [os.path.join(csv_dir, f) for f in os.listdir(csv_dir) if f.endswith('.csv')]

@@ -19,7 +19,7 @@ from scipy.ndimage.measurements import center_of_mass
 
 def retrieve_data(csv_dir, modality='T1'):
     # feature csv locations, genomic info is stored in the clinical info csv
-    clinical_info = pd.read_csv(os.path.join(csv_dir, '../UPENN-GBM_clinical_info_v1.0.csv'))
+    clinical_info = pd.read_csv(os.path.join(csv_dir, '../UPENN-GBM_clinical_info_v2.1.csv'))
     
     # maybe useful in the future, pulls all modalities and stores them into a dictionary of DataFrames 
     features_csvs = [os.path.join(csv_dir, f) for f in os.listdir(csv_dir) if f.endswith('.csv')]
@@ -180,9 +180,9 @@ def retrieve_image_data(patient_df, modality='T2', image_dir_='../../data/upenn_
     mansegm_paths = [os.path.join(r, d, f1) if len(d)>0 else os.path.join(r, f1) for r, d, f in os.walk(mansegm_dir) for f1 in f]
     structural_paths = [os.path.join(r, d, f1) if len(d)>0 else os.path.join(r, f1) for r, d, f in os.walk(structural_dir) for f1 in f]
 
-    selected_autosegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_mansegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_structural_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in structural_paths if ('_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients) and (modality+'.' in p)}
+    selected_autosegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_mansegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_structural_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in structural_paths if ('_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients) and (modality+'.' in p)}
 
     paths_df = pd.DataFrame(patient_df).copy(deep=True)
     paths_df['autosegm_image_paths'] = paths_df.index.map(selected_autosegm_paths)
@@ -231,9 +231,9 @@ def convert_image_data(patient_df, modality='T2', image_dir_='../../data/upenn_G
     structural_paths = [os.path.join(r, d, f1) if len(d)>0 else os.path.join(r, f1) for r, d, f in os.walk(structural_dir) for f1 in f]
 
     # will need to edit the splits based on the os that is being used. \\ is for windows due to the filesystem using backslashes as default
-    selected_autosegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_mansegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_structural_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in structural_paths if ('_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients) and (modality+'.' in p)}
+    selected_autosegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_mansegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_structural_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in structural_paths if ('_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients) and (modality+'.' in p)}
 
     paths_df = pd.DataFrame(patient_df)
     paths_df['autosegm_image_paths'] = paths_df.index.map(selected_autosegm_paths)
@@ -419,18 +419,18 @@ def convert_image_data_mod(patient_df, modality=['T2', 'FLAIR', 'T1', 'T1GD'], i
 
     # will need to edit the splits based on the os that is being used. \\ is for windows due to the filesystem using backslashes as default
     
-    selected_autosegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_mansegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_autosegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_mansegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
 
     selected_structural_paths = {}
 
     for p in structural_paths:
-        pat = '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2])
+        pat = '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2])
         if pat in patients:
             selected_structural_paths[pat] = {}
 
     for p in structural_paths:
-        pat = '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2])
+        pat = '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2])
         if pat in patients:
             for mod in modality:
                 if f"{mod}." in p:

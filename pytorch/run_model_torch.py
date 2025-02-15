@@ -13,13 +13,19 @@ from torch.utils.tensorboard import SummaryWriter
 import torchvision
 import torchmetrics
 
-from gbm_project.pytorch.dataset_class import DatasetGenerator
-from gbm_project.pytorch.resnet_torch import ResNet3D18, ResNet3D50, ResNet3D50_clinical
-from gbm_project.pytorch.resnet_spottune import resnet_spottune, resnet_agent
-import gbm_project.pytorch.resnet_spottune_clinical as clinical_resnet
+from pytorch.dataset_class import DatasetGenerator
+from pytorch.resnet_torch import ResNet3D18, ResNet3D50, ResNet3D50_clinical
+from pytorch.resnet_spottune import resnet_spottune, resnet_agent
+import pytorch.resnet_spottune_clinical as clinical_resnet
+
+from pathlib import Path
+import sys
+pkg_path = str(Path(os.path.abspath('')).parent.parent.absolute())
+print(pkg_path)
+sys.path.insert(0, pkg_path)
 
 from MedicalNet.models import resnet
-from gbm_project.pytorch.spottune_layer_translation_cfg import layer_loop, layer_loop_downsample
+from pytorch.spottune_layer_translation_cfg import layer_loop, layer_loop_downsample
 
 MODELS = ['ResNet18',
           'ResNet50']

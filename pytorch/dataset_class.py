@@ -7,8 +7,8 @@ import torch
 from scipy.ndimage import center_of_mass
 from skimage.util import random_noise
 from skimage.transform import rotate
-import elasticdeform
-from gbm_project.data_prep import retrieve_data
+#import elasticdeform
+from data_prep import retrieve_data
 
 class DatasetGenerator(torch.utils.data.Dataset):
     """
@@ -273,9 +273,12 @@ class DatasetGenerator(torch.utils.data.Dataset):
 
     def apply_deformation(self, arr):
         if self.n_channels==1:
-            arr = elasticdeform.deform_random_grid(arr, sigma=5, order=0, axis=(0,1,2))
+            #arr = elasticdeform.deform_random_grid(arr, sigma=5, order=0, axis=(0,1,2))
+            pass
         else:
-            arr = elasticdeform.deform_random_grid(arr, sigma=5, order=0, axis=(1,2,3))
+            #arr = elasticdeform.deform_random_grid(arr, sigma=5, order=0, axis=(1,2,3))
+            pass
+        raise Exception("Not using elasticdeform anymore")
         return arr
 
 

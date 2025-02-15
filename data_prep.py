@@ -14,7 +14,7 @@ from skimage.transform import rescale
 from skimage.util import random_noise
 from skimage.transform import rotate
 
-import elasticdeform
+#import elasticdeform
 
 from scipy.ndimage.measurements import center_of_mass
 from scipy.stats.mstats import winsorize
@@ -26,7 +26,7 @@ def retrieve_patients(csv_dir, image_dir_, modality='DSC', classifier='MGMT'):
     image_dir_: the location of the images. if modality is set to npy, the location of the images as numpy arrays
     """
     # feature csv locations, genomic info is stored in the clinical info csv
-    clinical_info = pd.read_csv(os.path.join(csv_dir, '../UPENN-GBM_clinical_info_v1.0.csv'))
+    clinical_info = pd.read_csv(os.path.join(csv_dir, '../UPENN-GBM_clinical_info_v2.1.csv'))
     clinical_info.set_index('ID', inplace=True)
     class_of_interest = clinical_info[classifier]
 
@@ -46,10 +46,12 @@ def retrieve_patients(csv_dir, image_dir_, modality='DSC', classifier='MGMT'):
 
     if 'npy' in modality:
         structural_dir = []
-        structural_dir.append(os.scandir(image_dir_))
+        structural_dir.append(os.scandir(os.path.join(image_dir_, f'images_{modality}', f'images_{modality}')))
         patients = {} 
         for d in structural_dir[0]:
             patients['_'.join(d.name.split('_')[:-1])] = final_class.loc['_'.join(d.name.split('_')[:2])].to_dict()
+        if len(patients.keys()) == 0:
+            raise Exception("Failed to retreive patients.")
         patients = pd.DataFrame(patients).T
         idx_to_remove = [label for label in patients.index.tolist() if len(label.split('_'))>2]
         patients = patients.drop(idx_to_remove)
@@ -57,13 +59,13 @@ def retrieve_patients(csv_dir, image_dir_, modality='DSC', classifier='MGMT'):
     else:
         mod_patients = {}
         if np.any([True if 'DSC' in mod else False for mod in modality]):
-            scan = os.scandir(os.path.join(image_dir_, 'images_DSC'))
+            scan = os.scandir(os.path.join(image_dir_, 'images_DSC', 'images_DSC'))
             mod_patients['DSC'] =  [d.name for d in scan if d.name in final_class.index.tolist() and ('_21' not in d.name)]
         if np.any([True if 'DTI' in mod else False for mod in modality]):
-            scan = os.scandir(os.path.join(image_dir_, 'images_DTI'))
+            scan = os.scandir(os.path.join(image_dir_, 'images_DTI', 'images_DTI'))
             mod_patients['DTI'] = [d.name for d in scan if d.name in final_class.index.tolist() and ('_21' not in d.name)]
         if np.any([True if mod in struct_mods else False for mod in modality]):
-            scan = os.scandir(os.path.join(image_dir_, 'images_structural'))
+            scan = os.scandir(os.path.join(image_dir_, 'images_structural', 'images_structural'))
             mod_patients['structural'] = [d.name for d in scan if d.name in final_class.index.tolist() and ('_21' not in d.name)]
         
         patients = pd.DataFrame(final_class)
@@ -80,13 +82,13 @@ def retrieve_radiomics(patients, csv_dir, modality=['DSC_PH']):
     features_csvs = [os.path.join(csv_dir, f) for f in os.listdir(csv_dir) if (f.endswith('.csv') and np.any([m in f for m in modality]))]
     features_dfs = OrderedDict({os.path.split(f)[-1].strip('.csv'): pd.read_csv(f) for f in features_csvs})
 
-    full_featues_df = pd.read_csv(features_csvs[0])
+    full_features_df = pd.read_csv(features_csvs[0])
     if len(features_csvs) > 1:
         for i, f in enumerate(features_csvs):
             if i < 1: continue
             full_features_df.join(pd.read_csv(f), how='inner', left_on='SubjectID', right_on='SubjectID')
 
-    full_features_dfs.set_index('SubjectID')
+    full_features_df.set_index('SubjectID')
 
     return
     
@@ -94,7 +96,7 @@ def retrieve_radiomics(patients, csv_dir, modality=['DSC_PH']):
 
 def retrieve_data(csv_dir, modality='T1'):
     # feature csv locations, genomic info is stored in the clinical info csv
-    clinical_info = pd.read_csv(os.path.join(csv_dir, '../UPENN-GBM_clinical_info_v1.0.csv'))
+    clinical_info = pd.read_csv(os.path.join(csv_dir, '../UPENN-GBM_clinical_info_v2.1.csv'))
     
     # maybe useful in the future, pulls all modalities and stores them into a dictionary of DataFrames 
     features_csvs = [os.path.join(csv_dir, f) for f in os.listdir(csv_dir) if f.endswith('.csv')]
@@ -255,9 +257,9 @@ def retrieve_image_data(patient_df, modality='T2', image_dir_='../../data/upenn_
     mansegm_paths = [os.path.join(r, d, f1) if len(d)>0 else os.path.join(r, f1) for r, d, f in os.walk(mansegm_dir) for f1 in f]
     structural_paths = [os.path.join(r, d, f1) if len(d)>0 else os.path.join(r, f1) for r, d, f in os.walk(structural_dir) for f1 in f]
 
-    selected_autosegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_mansegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_structural_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in structural_paths if ('_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients) and (modality+'.' in p)}
+    selected_autosegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_mansegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_structural_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in structural_paths if ('_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients) and (modality+'.' in p)}
 
     paths_df = pd.DataFrame(patient_df).copy(deep=True)
     paths_df['autosegm_image_paths'] = paths_df.index.map(selected_autosegm_paths)
@@ -306,9 +308,9 @@ def convert_image_data(patient_df, modality='T2', image_dir_='../../data/upenn_G
     structural_paths = [os.path.join(r, d, f1) if len(d)>0 else os.path.join(r, f1) for r, d, f in os.walk(structural_dir) for f1 in f]
 
     # will need to edit the splits based on the os that is being used. \\ is for windows due to the filesystem using backslashes as default
-    selected_autosegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_mansegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_structural_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in structural_paths if ('_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients) and (modality+'.' in p)}
+    selected_autosegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_mansegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_structural_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in structural_paths if ('_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients) and (modality+'.' in p)}
 
     paths_df = pd.DataFrame(patient_df)
     paths_df['autosegm_image_paths'] = paths_df.index.map(selected_autosegm_paths)
@@ -515,18 +517,18 @@ def convert_image_data_mod(patient_df, modality=['T2', 'FLAIR', 'T1', 'T1GD'], i
     #structural_paths = [os.path.join(r, d, f1) if len(d)>0 else os.path.join(r, f1) for r, d, f in os.walk(structural_dir) for f1 in f]
     # will need to edit the splits based on the os that is being used. \\ is for windows due to the filesystem using backslashes as default
     
-    selected_autosegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
-    selected_mansegm_paths = {'_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_autosegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in autosegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
+    selected_mansegm_paths = {'_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]): p for p in mansegm_paths if '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2]) in patients}
 
     selected_structural_paths = {}
 
     for p in structural_paths:
-        pat = '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2])
+        pat = '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2])
         if pat in patients:
             selected_structural_paths[pat] = {}
 
     for p in structural_paths:
-        pat = '_'.join(p.split('\\')[-1].split('.')[0].split('_')[:2])
+        pat = '_'.join(p.split('/')[-1].split('.')[0].split('_')[:2])
         if pat in patients:
             for mod in modality:
                 if f"{mod}." in p:
@@ -541,17 +543,32 @@ def convert_image_data_mod(patient_df, modality=['T2', 'FLAIR', 'T1', 'T1GD'], i
 
     rng_noise = np.random.default_rng(42)
     rng_rotate = np.random.default_rng(42)
+    success_flag = True
+    failed_pats = []
     for pat, row in paths_df.iterrows():
         mod_arr = OrderedDict()
         for aug in augments:
             for mod in modality:
+                success_flag = True
                 if image_type == 'autosegm':
                     mask = sitk.GetArrayFromImage(sitk.ReadImage(row['autosegm_image_paths']))
                 elif image_type == 'mansegm' and np.logical_not(row['mansegm_image_paths'] != row['mansegm_image_paths']):
                     mask = sitk.GetArrayFromImage(sitk.ReadImage(row['mansegm_image_paths']))
                 else:
                     mask = sitk.GetArrayFromImage(sitk.ReadImage(row['autosegm_image_paths']))
-                struct = sitk.GetArrayFromImage(sitk.ReadImage(row['structural_image_paths'][mod]))
+                try:
+                    struct = sitk.GetArrayFromImage(sitk.ReadImage(row['structural_image_paths'][mod]))
+                except:
+                    if pat == 'UPENN-GBM-00094_11':
+                        pass
+                    print(f"ERROR in patient {pat}, augmentation {aug}, and mod {mod}")
+                    print("row:")
+                    print(row)
+                    print("skipping...")
+                    failed_pats.append(pat)
+                    print()
+                    success_flag = False
+                    continue
 
                 full_arr = np.where(mask>0, struct, 0)
                 #full_arr = np.where(np.logical_and(mask>0, mask!=2), struct, 0)
@@ -605,29 +622,35 @@ def convert_image_data_mod(patient_df, modality=['T2', 'FLAIR', 'T1', 'T1GD'], i
                     #    full_arr = np.concatenate((full_arr, np.zeros((difference, full_shape[1], full_shape[2]))), axis=0)
 
                 mod_arr[mod] = full_arr
+            
+            if success_flag:
+                arr = np.array([mod_arr[mod] for mod in modality])
+                if 'noise' in aug:
+                    arr = random_noise(arr, mode='gaussian', seed=rng_noise)
+                if 'rotation' in aug:
+                    angle = rng_rotate.integers(-180, high=180)
+                    for i in range(len(arr)):
+                        arr[i,:,:,:] = rotate(arr[i,:,:,:], angle, preserve_range=True)
+                if 'flip' in aug:
+                    arr = np.flip(arr, axis=(1,2,3)).copy()
+                if 'deform' in aug:
+                    #arr = elasticdeform.deform_random_grid(arr, sigma=5, order=0, axis=(1,2,3))
+                    raise Exception("Not using elasticdeform anymore")
 
-            arr = np.array([mod_arr[mod] for mod in modality])
-            if 'noise' in aug:
-                arr = random_noise(arr, mode='gaussian', seed=rng_noise)
-            if 'rotation' in aug:
-                angle = self.rng_rotate.integers(-180, high=180)
-                for i in range(len(arr)):
-                    arr[i,:,:,:] = rotate(arr[i,:,:,:], angle, preserve_range=True)
-            if 'flip' in aug:
-                arr = np.flip(arr, axis=(1,2,3)).copy()
-            if 'deform' in aug:
-                arr = elasticdeform.deform_random_grid(arr, sigma=5, order=0, axis=(1,2,3))
+                if 'base' in aug:
+                    np.save(os.path.join(out_dir, f"{pat}_mods.npy"), np.array([mod_arr[mod] for mod in modality]))
+                else:
+                    np.save(os.path.join(out_dir, f"{pat}_{aug}_mods.npy"), arr)
+                #np.save(os.path.join(out_dir, pat+'_'+modality+'.npy'), et_arr)
+                #np.save(os.path.join(out_dir, pat+'_'+modality+'.npy'), nc_arr)
+                #np.save(os.path.join(out_dir, pat+'_'+modality+'.npy'), full_arr)
 
-            if 'base' in aug:
-                np.save(os.path.join(out_dir, f"{pat}_mods.npy"), np.array([mod_arr[mod] for mod in modality]))
-            else:
-                np.save(os.path.join(out_dir, f"{pat}_{aug}_mods.npy"), arr)
-            #np.save(os.path.join(out_dir, pat+'_'+modality+'.npy'), et_arr)
-            #np.save(os.path.join(out_dir, pat+'_'+modality+'.npy'), nc_arr)
-            #np.save(os.path.join(out_dir, pat+'_'+modality+'.npy'), full_arr)
+        if success_flag:
+            del mask
+            del struct
 
-        del mask
-        del struct
+    print("Failed patients:")
+    print(list(set(failed_pats)))
 
     return paths_df
 
