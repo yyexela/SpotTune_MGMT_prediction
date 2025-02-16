@@ -21,7 +21,6 @@ import pytorch.resnet_spottune_clinical as clinical_resnet
 from pathlib import Path
 import sys
 pkg_path = str(Path(os.path.abspath('')).parent.parent.absolute())
-print(pkg_path)
 sys.path.insert(0, pkg_path)
 
 from MedicalNet.models import resnet

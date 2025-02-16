@@ -1,5 +1,3 @@
-# # Data Preparation
-# The purpose of this notebook is to create the npy files that will be used for training purposes
 import os
 from datetime import datetime
 import pandas as pd
@@ -29,8 +27,14 @@ import torchmetrics
 from pathlib import Path
 import sys
 pkg_path = str(Path(os.path.abspath('')).parent.absolute())
-print(pkg_path)
 sys.path.insert(0, pkg_path)
+pkg_path = str('/home/ee577/project')
+sys.path.insert(0, pkg_path)
+
+from src import *
+
+# Load config file
+config = global_config.config
 
 #import initial_ml as iml
 import data_prep as dp
@@ -48,12 +52,12 @@ csv_dir = '/home/ee577/project/Datasets/UPENN_GBM/radiomic_features_CaPTk/'
 image_dir = '/home/ee577/project/Datasets/UPENN_GBM/PKG-UPENN-GBM-NIfTI/UPENN-GBM/NIfTI-files'
 
 # The modality to create npy files out of. The numpy file will have a different derivative at each index
-#modality = 'struct'
+modality = 'struct'
 #modality = 'DSC'
-modality = 'DTI'
+#modality = 'DTI'
 
 # The output directory of the npy files
-out_dir = f'../../data/upenn_GBM/numpy_conversion_{modality}_channels/'
+out_dir = os.path.join(config.upenn_dir, f'numpy_conversion_{modality}_channels')
 
 # Specify the derivatives to put into the npy file, this corresponds to the order of the derivatives when using 'channel_idx' as a reference in the training notebook
 derivatives = {
@@ -65,13 +69,13 @@ derivatives = {
 
 #auto_df, man_df, comb_df = dp.retrieve_data(csv_dir, modality=modality)
 #patients = pd.DataFrame(auto_df.iloc[:, 0:2])
-#classifier = 'Survival_from_surgery_days'
-classifier = 'MGMT'
-patients = dp.retrieve_patients(csv_dir, image_dir, modality='DTI', classifier=classifier)
+classifier = 'Survival_from_surgery_days_UPDATED'
+patients = dp.retrieve_patients(csv_dir, image_dir, modality=derivatives[modality], classifier=classifier)
 
 #image_df = dp.retrieve_image_data(patients, modality=modality, image_dir_=image_dir)
 path_df = dp.convert_image_data_mod(patients, modality=derivatives[modality], 
-                                image_dir_=image_dir, out_dir=out_dir,
+                                image_dir_=image_dir,
+                                out_dir=out_dir,
                                 image_type='autosegm',
                                 #scale_file=scale_file,
                                 window=(140, 172, 164),
@@ -80,5 +84,3 @@ path_df = dp.convert_image_data_mod(patients, modality=derivatives[modality],
                                 base_dim=(155, 240, 240), downsample=True,
                                 window_idx = ((0, 140), (39, 211), (44,208)), down_factor=0.5,
                                 augments = ['base'])
-
-

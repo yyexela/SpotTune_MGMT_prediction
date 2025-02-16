@@ -24,6 +24,10 @@ def retrieve_patients(csv_dir, image_dir_, modality='DSC', classifier='MGMT'):
     """
     csv_dir: the directory that contains all of the CSV files, namely the one with the clinical info
     image_dir_: the location of the images. if modality is set to npy, the location of the images as numpy arrays
+
+    Alexey Note:
+    - Use survival as classifier, creates bins for patients and removes patients without survival data
+    - Returns one-hot encoded list of patients with survival data and their respective bin
     """
     # feature csv locations, genomic info is stored in the clinical info csv
     clinical_info = pd.read_csv(os.path.join(csv_dir, '../UPENN-GBM_clinical_info_v2.1.csv'))
@@ -50,8 +54,8 @@ def retrieve_patients(csv_dir, image_dir_, modality='DSC', classifier='MGMT'):
         patients = {} 
         for d in structural_dir[0]:
             patients['_'.join(d.name.split('_')[:-1])] = final_class.loc['_'.join(d.name.split('_')[:2])].to_dict()
-        if len(patients.keys()) == 0:
-            raise Exception("Failed to retreive patients.")
+        #if len(patients.keys()) == 0:
+            #raise Exception("Failed to retreive patients.")
         patients = pd.DataFrame(patients).T
         idx_to_remove = [label for label in patients.index.tolist() if len(label.split('_'))>2]
         patients = patients.drop(idx_to_remove)
@@ -65,7 +69,7 @@ def retrieve_patients(csv_dir, image_dir_, modality='DSC', classifier='MGMT'):
             scan = os.scandir(os.path.join(image_dir_, 'images_DTI', 'images_DTI'))
             mod_patients['DTI'] = [d.name for d in scan if d.name in final_class.index.tolist() and ('_21' not in d.name)]
         if np.any([True if mod in struct_mods else False for mod in modality]):
-            scan = os.scandir(os.path.join(image_dir_, 'images_structural', 'images_structural'))
+            scan = os.scandir(os.path.join(image_dir_, 'images_structural'))
             mod_patients['structural'] = [d.name for d in scan if d.name in final_class.index.tolist() and ('_21' not in d.name)]
         
         patients = pd.DataFrame(final_class)
@@ -480,6 +484,10 @@ def convert_image_data(patient_df, modality='T2', image_dir_='../../data/upenn_G
 def convert_image_data_mod(patient_df, modality=['T2', 'FLAIR', 'T1', 'T1GD'], image_dir_='../../data/upenn_GBM/images/NIfTI-files/', out_dir='../../data/upenn_GBM/numpy_conversion', image_type='autosegm', scale_file='image_scaling_T2.json', window=(140, 172, 164), pad_window=(86, 86, 86), base_dim=(155,240,240), downsample=False, window_idx = ((0, 140), (39, 211), (44,208)), down_factor=0.5, augments=('base', 'flip', 'rotate', 'noise', 'deform'), do_all = False): 
     """
     Based on a provided directory, retrieve images and save them as npy files to be used by a data generator
+
+    Alexey notes:
+    - Creates the numpy files used in training
+    - Note that the paper, "Adaptive fine-tuning based transfer learning for the identification of MGMT promoter methylation status" explains the data processing methodology
     """
 
     if not os.path.isdir(out_dir):
@@ -509,7 +517,9 @@ def convert_image_data_mod(patient_df, modality=['T2', 'FLAIR', 'T1', 'T1GD'], i
     for path in structural_dir:
         for r, d, f in os.walk(path):
             for f1 in f:
-                if len(d)>0:
+                if d == ['old']:
+                    continue
+                elif len(d)>0:
                     structural_paths.append(os.path.join(r,d,f1))
                 else:
                     structural_paths.append(os.path.join(r, f1))
@@ -559,8 +569,6 @@ def convert_image_data_mod(patient_df, modality=['T2', 'FLAIR', 'T1', 'T1GD'], i
                 try:
                     struct = sitk.GetArrayFromImage(sitk.ReadImage(row['structural_image_paths'][mod]))
                 except:
-                    if pat == 'UPENN-GBM-00094_11':
-                        pass
                     print(f"ERROR in patient {pat}, augmentation {aug}, and mod {mod}")
                     print("row:")
                     print(row)
@@ -649,7 +657,7 @@ def convert_image_data_mod(patient_df, modality=['T2', 'FLAIR', 'T1', 'T1GD'], i
             del mask
             del struct
 
-    print("Failed patients:")
+    print(f"Failed patients for {modality}:")
     print(list(set(failed_pats)))
 
     return paths_df
@@ -947,70 +955,18 @@ def split_image(df, n_cat=1, n_splits=5):
     return X_test, y_test, kfold, X_kfold, y_kfold
 
 
-def split_image_v2(csv_dir='../../data/upenn_GBM/csvs/radiomic_features_CaPTk/', image_dir='../../data/upenn_GBM/', n_cat=1, n_splits=5, modality='DSC', seed=42):
+def split_image_v2(patients, seed=42):
     """
     splits and scales input dataframe# and outputs as ndarray, assumes binary categories in the first two columns of the dataframe
     """
-    # separate out the inputs and lab#els 
-    #y = df[['Methylated', 'Unmethylated']]
-
-    modality_dir = os.path.join(image_dir, f"numpy_conversion_{modality}_augmented_channels")
-    dsc_dir = os.path.join(image_dir, f"numpy_conversion_DSC_augmented_channels")
-
-    patients = retrieve_patients(csv_dir, modality_dir, modality='npy', classifier='MGMT')
-    dsc_patients = retrieve_patients(csv_dir, dsc_dir, modality='npy', classifier='MGMT')
-
-    if n_cat==1:
-        mod_y = patients[['Methylated']]
-        dsc_y = dsc_patients[['Methylated']]
-    else:
-        mod_y = patients
-        dsc_y = dsc_patients
-
-    y_columns = mod_y.columns.to_list()
-    dsc_X = dsc_patients.index
-    dsc_y = dsc_y.to_numpy()
+    X = patients.index
+    y = patients
     
     # Separate into train and test datasets.
     # train_test_split automatically shuffles and splits the data following predefined sizes can revisit if shuffling is not a good idea
-    X_dsc_train, X_dsc_test, y_dsc_train, y_dsc_test = train_test_split(dsc_X, dsc_y, test_size=0.3, random_state=42, stratify=dsc_y)
-    X_nok_train, X_nok_val, y_nok_train, y_nok_val = train_test_split(X_dsc_train, y_dsc_train, test_size=0.25, random_state=seed, stratify=y_dsc_train)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=seed, stratify=y)
     
-    kfold = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
-
-    extra_dsc = [pat for pat in dsc_patients.index if pat not in mod_y.index]
-
-    if 'DSC' in modality:
-        X_kfold = X_dsc_train
-        y_kfold = y_dsc_train
-        X_test = X_dsc_test
-        y_test = y_dsc_test
-
-    else:
-        mod_y = mod_y.drop([pat for pat in mod_y.index if pat in dsc_patients.index])
-        mod_X = mod_y.index
-        mod_y = mod_y.to_numpy()
-        mod_X_train, mod_X_test, mod_y_train, mod_y_test = train_test_split(mod_X, mod_y, test_size=0.3, random_state=42, stratify=mod_y)
-
-        X_kfold = mod_X_train.union(X_dsc_train, sort=False)
-        y_kfold = np.concatenate((mod_y_train, y_dsc_train))
-        dsc_to_remove = np.isin(X_kfold, extra_dsc) 
-        X_kfold = X_kfold[~dsc_to_remove]
-        y_kfold = y_kfold[~dsc_to_remove]
-
-        X_test = mod_X_test.union(X_dsc_test, sort=False)
-        y_test = np.concatenate((mod_y_test, y_dsc_test))
-        dsc_to_remove = np.isin(X_test, extra_dsc)
-        X_test = X_test[~dsc_to_remove]
-        y_test = y_test[~dsc_to_remove]
-         
-         
-    kfold.get_n_splits(X_kfold, y_kfold)
-    y_test = pd.DataFrame(y_test, index=X_test, columns=y_columns)
-    y_kfold = pd.DataFrame(y_kfold, index=X_kfold, columns=y_columns)
-
-    return X_test, y_test, kfold, X_kfold, y_kfold
-
+    return  X_train, y_train, X_test, y_test
 
 def get_pc(df, components=0.4):
     pca = PCA(n_components=components, random_state=42)
