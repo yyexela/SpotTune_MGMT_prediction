@@ -109,12 +109,6 @@ class DatasetGenerator(torch.utils.data.Dataset):
             self.data_indices = self.data_indices.drop(idx_to_remove)
             if self.use_clinical:
                 self.clinical_input = self.clinical_input.drop(idx_to_remove)
-            
-
-
-
-        
-
 
     def __len__(self):
         return len(self.labels)
@@ -139,7 +133,11 @@ class DatasetGenerator(torch.utils.data.Dataset):
         if self.to_slice:
             com = center_of_mass(in_arr[0])
             depth_com = int(com[0])
-            in_arr = in_arr[:, (depth_com-self.n_slices):(depth_com+self.n_slices), :, :]
+            if self.n_slices == 1:
+                in_arr = in_arr[:, depth_com, :, :]
+                in_arr = np.expand_dims(in_arr, 1)
+            else:
+                in_arr = in_arr[:, (depth_com-self.n_slices):(depth_com+self.n_slices), :, :]
             if len(in_arr[0]) < self.n_slices*2:
                 n_pad = self.n_slices*2 - len(in_arr[0])
                 in_arr = np.pad(in_arr, pad_width=((0, 0), 
@@ -182,8 +180,7 @@ class DatasetGenerator(torch.utils.data.Dataset):
         if self.use_clinical:
             return (torch.from_numpy(in_arr), torch.tensor(clinical)), torch.tensor(label)
         else:
-            return torch.from_numpy(in_arr), torch.tensor(label)
-
+            return torch.from_numpy(in_arr), torch.tensor(label.values)
 
     def get_pat_array(self, pat_idx):
         '''
@@ -218,7 +215,6 @@ class DatasetGenerator(torch.utils.data.Dataset):
                         in_arr = self.apply_deformation(in_arr)
 
         return in_arr
-
 
     def get_pat_mod_array(self, pat_idx):
         '''
@@ -255,11 +251,8 @@ class DatasetGenerator(torch.utils.data.Dataset):
 
         return mod_arr
 
-
-
     def apply_noise(self, arr):
         return random_noise(arr, mode='gaussian', seed=self.rng_noise)
-
 
     def apply_rotation(self, arr):
         angle = self.rng_rotate.integers(-180, high=180)
@@ -269,7 +262,6 @@ class DatasetGenerator(torch.utils.data.Dataset):
             for i in range(self.n_channels):
                  arr[i,:,:,:] = rotate(arr[i,:,:,:], angle, preserve_range=True)
         return arr
-
 
     def apply_deformation(self, arr):
         if self.n_channels==1:
@@ -281,14 +273,12 @@ class DatasetGenerator(torch.utils.data.Dataset):
         raise Exception("Not using elasticdeform anymore")
         return arr
 
-
     def apply_flip(self, arr):
         if self.n_channels==1:
             arr = np.flip(arr, axis=(0,1,2)).copy()
         else:
             arr = np.flip(arr, axis=(1,2,3)).copy()
         return arr
-
 
     def encode(self, arr, idx):
         arr.append(np.zeros((self.n_channels, self.dim[1], self.dim[2])), axis=0)

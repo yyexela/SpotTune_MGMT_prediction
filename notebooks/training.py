@@ -38,6 +38,7 @@ config = global_config.config
 
 import data_prep as dp
 from pytorch.run_model_torch import RunModel
+from pytorch.dataset_class import DatasetGenerator
 
 from MedicalNet.models import resnet
 
@@ -68,10 +69,36 @@ derivatives = {
     'DSC':['DSC_ap-rCBV', 'DSC_PH', 'DSC_PSR'],
 }
 
+gen_params = {
+              'data_dir': os.path.join(config.upenn_dir, 'numpy_conversion_struct_channels'),
+              'csv_dir': os.path.join(config.upenn_dir),
+              'modality': ['mods'],
+              'dim': (70,86,86),
+              'n_channels': 1,
+              'n_classes': 7,
+              'seed': seed,
+              'to_augment': False,
+              'make_augment': False,
+              'to_encode': False,
+              'to_slice': True,
+              'to_3D_slice': False,
+              'n_slices': 1,
+              'use_clinical': False,
+              'augment_types': None,
+             }
+
+
 # This function gives the list of patients that will be used in the training
 patients = dp.retrieve_patients(csv_dir, image_dir, modality=derivatives[modality], classifier=classifier)
 
 # Create the training/test splits for a specified modality
 X_train, y_train, X_test, y_test = dp.split_image_v2(patients, seed=seed)
+
+train_data = DatasetGenerator(X_train, y_train, **gen_params)
+train_dataloader = DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
+
+for batch, (X, y) in enumerate(train_dataloader):
+    print("test")
+    pass
 
 print("done")
